@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>随机字符串验证码</title>
+    <!-- 引入样式 -->
+    <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        [v-cloak] {
+            display: none;
+        }
+
+
+        .box-card {
+            margin: 50px auto 0;
+            width: 480px;
+        }
+
+        .codeCanvas{
+            height: 40px;
+            cursor: pointer;
+        }
+
+        .btnBox{
+            margin-top: 50px;
+            width: 100%;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app" v-cloak>
+        <el-card class="box-card">
+            <!-- 输入组 -->
+            <el-row :gutter="20">
+                <el-col :span="14">
+                    <div class="grid-content bg-purple">
+                        <!-- 输入框 -->
+                        <el-input v-model="inputCode" placeholder="请输入验证码，不区分大小写"></el-input>
+                    </div>
+                </el-col>
+                <el-col :span="4">
+                    <div class="grid-content bg-purple">
+                        <canvas class="codeCanvas" ref="checkCode" @click="getCode"></canvas>
+                    </div>
+                </el-col>
+            </el-row>
+
+
+            <div class="btnBox">
+                <!-- 按钮 -->
+                <el-button type="primary" round icon="el-icon-d-arrow-right" @click="checkMe">下一步</el-button>
+            </div>
+
+        </el-card>
+    </div>
+
+
+    <!-- js -->
+    <script src="https://unpkg.com/vue/dist/vue.js"></script>
+    <script src="https://unpkg.com/element-ui/lib/index.js"></script>
+    <script>
+        new Vue({
+            el: '#app',
+            data() {
+                return {
+                    inputCode: '',  // 输入的值
+                    checkCode: '',  // 图片验证码的值
+                    cvs: {
+                        w: 100, // 给出默认宽度  宽度会在图片绘制时根据长度更改
+                        h: 40,
+                        fontSize: 24,   // 字体大小
+                        str: '1234567890qwertyuiopasdfghjklzxcvbnmQWERTYUIOPLKJHGFDSAZXCVBNM',  // 字符串生成范围
+                        len: 4, // 字符串长度 
+                        line: 3 // 噪音线个数
+                    }
+                }
+            },
+            methods: {
+                // 随机整数生成器，范围[0, max)
+                rInt(max) {
+                    return Math.floor(Math.random() * 100000 % max);
+                },
+                // 生成随机字符串
+                rCode() {
+                    let code = '';
+                    let len = this.cvs.len;
+                    let strLen = this.cvs.str.length;
+                    for(let i = 0; i < len; i ++) {
+                        code += this.cvs.str.charAt(this.rInt(strLen));
+                    }
+                    this.checkCode = code;
+                    return code;
+                },
+                // 生成随机颜色 rgba格式
+                rColor() {
+                    let a = ((Math.random()*5 + 5) / 10).toFixed(2);
+                    return `rgba(${this.rInt(256)}, ${this.rInt(256)}, ${this.rInt(256)}, ${a})`
+                },
+                // 验证码图片绘制
+                drawCode(domCvs) {
+                    let _this = this;
+                    // 随机字符串
+                    let checkCode = this.rCode();
+                    // 宽设置
+                    this.cvs.w = 10 + this.cvs.fontSize * this.cvs.len;
+
+                    // 判断是否支持canvas
+                    if(domCvs !== null && domCvs.getContext && domCvs.getContext('2d')){
+                        // 设置显示区域大小
+                        domCvs.style.width = _this.cvs.w;
+                        // 设置画板宽高
+                        domCvs.setAttribute('width', _this.cvs.w);
+                        domCvs.setAttribute('height', _this.cvs.h);
+                        // 画笔
+                        let pen = domCvs.getContext('2d');
+                        // 背景: 颜色  区域
+                        pen.fillStyle = '#eee';
+                        pen.fillRect(0, 0, _this.cvs.w, _this.cvs.h);
+                        // 水平线位置
+                        pen.textBaseline = 'middle';   // top middle bottom
+                        // 内容
+                        for(let i = 0; i < _this.cvs.len; i ++) {
+                            pen.fillStyle = _this.rColor(); // 随机颜色
+                            pen.font = `bold ${_this.cvs.fontSize}px 微软雅黑`; // 字体设置
+                            // 字符绘制: (字符, X坐标, Y坐标)
+                            pen.fillText(checkCode.charAt(i), 10 + _this.cvs.fontSize * i, 17 + _this.rInt(10));   
+                        }
+                        // 噪音线
+                        for(let i = 0; i < _this.cvs.line; i ++) {
+                            // 起点
+                            pen.moveTo(_this.rInt(_this.cvs.w) / 2, _this.rInt(_this.cvs.h));
+                            // 终点
+                            pen.lineTo(_this.rInt(_this.cvs.w), _this.rInt(_this.cvs.h));
+                            // 颜色
+                            pen.strokeStyle = _this.rColor();
+                            // 粗细
+                            pen.lineWidth = '2';
+                            // 绘制
+                            pen.stroke();
+                        }
+
+                    } else {
+                        this.$message.error('不支持验证码格式，请升级或更换浏览器重试');
+                    }
+                },
+                // 获取验证码
+                getCode() {
+                    let domCvs = this.$refs.checkCode;
+                    this.drawCode(domCvs);
+                },
+                // 点击验证
+                checkMe() {
+                    // 空、 错误、 正确 三个判断
+                    if(this.inputCode) {
+                        if(this.inputCode.toLowerCase() === this.checkCode.toLowerCase()) {
+                            // 验证成功要做的事
+                            this.$message.success('验证成功');
+                        } else {
+                            // 验证码有误
+                            this.$message.warning('验证码有误，请重新输入');
+                        }
+                    } else {
+                        // 输入为空
+                        this.$message.warning('请输入验证码');
+                    }
+                }
+
+            },
+            mounted() {
+                // 获取验证码图
+                this.getCode();
+            }
+        })
+    </script>
+</body>
+
+</html>
